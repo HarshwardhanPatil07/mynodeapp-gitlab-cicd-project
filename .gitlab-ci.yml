@@ -1,3 +1,9 @@
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH != "main" && $CI_PIPELINE_SOURCE != "merge_request_event"
+      when: never
+    - when: always
+
 stages:
   - test
   - build
@@ -35,6 +41,8 @@ push_image:
   stage: build
   needs:
     - build_image
+  script:
+    - echo "Logging into docker registry..."
     - echo "Pushing docker image to registry..."
 
 deploy_image:
