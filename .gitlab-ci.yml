@@ -102,4 +102,5 @@ deploy_image:
     - main
   stage: deploy
   script:
+
     - echo "Deploying new docker image to dev server..."
