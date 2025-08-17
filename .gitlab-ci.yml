@@ -4,8 +4,19 @@ workflow:
       when: never
     - when: always
 
+variables:
+  IMAGE_NAME: $CI_REGISTRY_IMAGE
+  IMAGE_TAG: "1.1"
+  DEV_SERVER_HOST: 3.127.248.212
+
+stages:
+  - test
+  - build
+  - deploy
+
 run_unit_tests:
   image: node:23-alpine3.19
+  stage: test
   tags:
     - ec2
     - docker
@@ -21,3 +32,40 @@ run_unit_tests:
       - app/junit.xml
     reports:
       junit: app/junit.xml
+
+
+build_image:
+  stage: build
+  tags:
+    - ec2
+    - remote
+    - shell
+  script:
+    - docker build -t $IMAGE_NAME:$IMAGE_TAG .
+
+
+push_image:
+  stage: build
+  needs:
+    - build_image
+  tags:
+    - ec2
+    - remote
+    - shell
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker push $IMAGE_NAME:$IMAGE_TAG
+
+deploy_to_dev:
+  stage: deploy
+  tags: 
+    - ec2
+    - remote
+    - shell
+  before_script:
+    - chmod 400 $SSH_PRIVATE_KEY
+  script:
+    - ssh -o StrictHostKeyChecking=no -i $SSH_PRIVATE_KEY ubuntu@$DEV_SERVER_HOST "
+      docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
+      docker run -d -p 3000:3000 $IMAGE_NAME:$IMAGE_TAG"
